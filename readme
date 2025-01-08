@@ -1,4 +1,4 @@
-# readme
+# ansible
 
 ## installation
 ```
@@ -13,4 +13,6 @@ ansible [core 2.15.3]
 ```
 
 ## playbooks
-
+```
+$ ansible-playbook playbooks/playbook.yml
+```
