@@ -1,0 +1,13 @@
+---
+- name: The playbook
+  hosts: all
+
+  tasks:
+    - name: Hostname
+      debug:
+        var: ansible_hostname
+
+    # - name: Set hostname
+    #   ansible.builtin.hostname:
+    #     name: "ansible"
+    #   become: yes
