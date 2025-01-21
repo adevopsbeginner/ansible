@@ -1,0 +1,13 @@
+---
+- name: Playbook - show hostname
+  hosts: all
+
+  tasks:
+    - name: Show hostname
+      ansible.builtin.debug:
+        var: ansible_hostname
+
+    - name: Show fqdn
+      ansible.builtin.debug:
+        var: ansible_fqdn
+

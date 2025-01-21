@@ -1,0 +1,10 @@
+---
+- name: Playbook - set a hostname
+  hosts: all
+
+  tasks:
+    - name: Set hostname
+      ansible.builtin.hostname:
+        name: "abeginner.2nd"
+      become: yes
+
