@@ -23,4 +23,6 @@ $ ansible-playbook playbooks/playbook.yml
    - directory
    - new file
  - copy
+ - group
+
 
