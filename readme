@@ -22,4 +22,5 @@ $ ansible-playbook playbooks/playbook.yml
  - file
    - directory
    - new file
+ - copy
 
