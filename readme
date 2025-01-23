@@ -25,5 +25,5 @@ $ ansible-playbook playbooks/playbook.yml
  - copy
  - group
  - user
-
+ - debug
 
