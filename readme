@@ -24,5 +24,6 @@ $ ansible-playbook playbooks/playbook.yml
    - new file
  - copy
  - group
+ - user
 
 
