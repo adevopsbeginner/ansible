@@ -19,4 +19,6 @@ $ ansible-playbook playbooks/playbook.yml
 
 ## list
  - hostname
+ - file
+
 
