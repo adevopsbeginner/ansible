@@ -11,3 +11,8 @@
       ansible.builtin.debug:
         var: ansible_fqdn
 
+    - name: Set hostname
+      ansible.builtin.hostname:
+        name: "uno"
+      become: yes
+
