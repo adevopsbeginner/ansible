@@ -1,0 +1,11 @@
+---
+- name: Playbook - how to create an ansible role
+  hosts: all
+
+  roles:
+    - hostname
+
+  tasks:
+    - name: Show hostname
+      ansible.builtin.debug:
+        var: ansible_hostname
