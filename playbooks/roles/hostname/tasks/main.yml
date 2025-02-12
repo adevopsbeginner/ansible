@@ -1,6 +1,6 @@
 ---
 - name: Set a hostname
   ansible.builtin.hostname:
-    name: "first-ansible-role"
+    name: "{{ new_hostname }}"
   become: yes
 

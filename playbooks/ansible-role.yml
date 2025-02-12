@@ -1,6 +1,8 @@
 ---
 - name: Playbook - how to create an ansible role
   hosts: all
+  vars:
+    new_hostname: uno
 
   roles:
     - hostname
