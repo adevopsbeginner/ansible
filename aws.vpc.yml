@@ -1,5 +1,5 @@
 ---
-- name: Ansible for AWS, creating VPC
+- name: Ansible for AWS, automating VPC = vpc + subnet + igw + route table
   hosts: localhost
   connection: local
 
@@ -42,4 +42,35 @@
         tags:
           Name: "{{ this_name }}"
           owner: "{{ owner }}"
+      register: public_subnets
+
+    - name: IGW
+      amazon.aws.ec2_vpc_igw:
+        region: "{{ aws_region }}"
+        vpc_id: "{{ newvpc.vpc.id }}"
+        state: present
+        tags:
+          Name: "{{ this_name }}"
+          owner: "{{ owner }}"
+      register: igw
+
+    - name: Route table
+      amazon.aws.ec2_vpc_route_table:
+        region: "{{ aws_region }}"
+        vpc_id: "{{ newvpc.vpc.id }}"
+        subnets:
+          - "{{ public_subnets.subnet.id }}"
+        routes:
+          - dest: "0.0.0.0/0"
+            gateway_id: "{{ igw.gateway_id }}"
+        tags:
+          Name: "{{ this_name }}"
+          owner: "{{ owner }}"
+
+    - name: Debug public subnet ID
+      ansible.builtin.debug:
+        msg:
+          - "vpc id, {{ public_subnets.subnet.vpc_id }}"
+          - "subnet id, {{ public_subnets.subnet.id }}"
+
 
