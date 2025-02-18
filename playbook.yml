@@ -1,0 +1,33 @@
+---
+- name: Ansible for AWS, playbook
+  hosts: localhost
+  connection: local
+
+  vars:
+    this_name: aabeginner
+    aws_region: ap-southeast-2
+    awsvpc_vpc_cidr_block: "10.10.0.0/16"
+    owner: adevopsbeginner
+
+  vars_files:
+    - vault.yml
+
+  environment:
+    AWS_REGION: "{{ aws_region }}"
+    AWS_ACCESS_KEY: '{{ vault_aws_access_key }}'
+    AWS_SECRET_KEY: '{{ vault_aws_secret_key }}'
+
+  roles:
+    - awsvpc
+
+  tasks:
+#    - name: Delete duplicate key
+#      amazon.aws.ec2_key:
+#        name: "{{ this_name }}"
+#        state: absent
+
+    - name: Creating AWS keypair with existing key
+      amazon.aws.ec2_key:
+        name: "{{ this_name }}"
+        key_material: "{{ lookup('file', 'files/ssh/abeginner.pub') }}"
+

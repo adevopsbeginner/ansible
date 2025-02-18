@@ -32,6 +32,11 @@ $ ansible-playbook playbooks/playbook.yml
  - folder structure
  - tasks/main.yml
  - run
+
+### Ansible for AWS
+ - keypair
+ - vpc + subnet + igw + route table
+
 ---
 ---
 ---
