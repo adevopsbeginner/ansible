@@ -1,19 +1,17 @@
 ---
-- name: Ansible for AWS, playbook
+- name: Ansible Playbook for AWS Automation - EC2
   hosts: localhost
   connection: local
 
   vars:
-    this_name: a_abeginner
+    #this_name: a_ansible
     aws_region: ap-southeast-2
     ami_name_prefix: al2023-ami-2023
     instance_type: t3.micro
     volume_size: 32
-    keypair_name: "{{ this_name }}_ed25519"
-    sg_whitelist: 
-     - "203.123.66.0/24"
-     - "203.123.67.0/24"
-     "{{ awsvpc_subnet_cidr_blocks }}"
+    keypair_name: "a_abeginner_ed25519"
+    public_subnet_id: subnet-03438a3c5ba878bbf
+    ec2sg_id: sg-078cdfac5d06e93c0
 
   vars_files:
     - vault.yml
@@ -23,34 +21,7 @@
     AWS_ACCESS_KEY: '{{ vault_aws_access_key }}'
     AWS_SECRET_KEY: '{{ vault_aws_secret_key }}'
 
-  roles:
-    - awsvpc
-
   tasks:
-    - name: New AWS keypair with existing key
-      amazon.aws.ec2_key:
-        name: "{{ keypair_name }}"
-        key_material: "{{ lookup('file', 'files/ssh/abeginner.pub') }}"
-
-    - name: New a security group
-      amazon.aws.ec2_security_group:
-        name: "{{ this_name }}"
-        state: present
-        description: ssh/https
-        vpc_id: "{{ newvpc.vpc.id }}"
-        rules:
-          - proto: tcp
-            ports:
-              - 22
-              - 443
-            cidr_ip: "{{ sg_whitelist }}"
-            rule_desc: ssh/https
-        tags:
-          Name: "{{ this_name }}"
-          owner: "{{ owner }}"
-          repo: "{{ repo }}"
-      register: ec2sg
-
     - name: Get AMI id
       amazon.aws.ec2_ami_info:
         filters:
@@ -65,10 +36,10 @@
     - name: New EC2 instance - {{ this_name }}
       amazon.aws.ec2_instance:
         name: "{{ this_name }}"
-        vpc_subnet_id: "{{ public_subnets.results[0].subnet.id }}"
+        vpc_subnet_id: "{{ public_subnet_id }}"
         image_id: "{{ sorted_ami_list[0].image_id }}"
         key_name: "{{ keypair_name }}"
-        security_group: "{{ ec2sg.group_id }}"
+        security_group: "{{ ec2sg_id }}"
         instance_type: "{{ instance_type }}"
         wait: true
         wait_timeout: 60
@@ -84,3 +55,17 @@
           Name: "{{ this_name }}"
           owner: "{{ owner }}"
           repo: "{{ repo }}"
+      # loop:
+      #   - webservera
+      #   - webserverb
+      #   - database1
+      #   - db_postgres
+      #   - ansible
+      #   - sydney
+      #   - friday
+      #   - apache
+      #   - httpd
+      #   - the-tenth-server
+      # loop_control:
+      #   loop_var: this_name
+        
