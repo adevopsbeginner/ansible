@@ -1,3 +1,4 @@
 .vault_password_file
 ansible_ssh_private_key*
-files/ssh/*
+files/ssh/abeginner
+files/ssh/abeginner.pub
