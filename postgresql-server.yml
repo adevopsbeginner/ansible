@@ -1,0 +1,13 @@
+---
+- name: Ansible Playbook for AWS Automation - PostgreSQL-server
+  hosts: all
+  become: yes
+
+  roles:
+    - postgresql-server
+
+  tasks:
+    - name: Target server name
+      ansible.builtin.debug:
+        var: ansible_hostname
+
