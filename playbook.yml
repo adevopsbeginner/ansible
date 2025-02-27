@@ -11,9 +11,9 @@
     volume_size: 32
     keypair_name: "{{ this_name }}_ed25519"
     sg_whitelist: 
-     - "203.123.66.0/24"
-     - "203.123.67.0/24"
-     "{{ awsvpc_subnet_cidr_blocks }}"
+     - "203.123.64.0/20"
+     - "10.10.10.0/24"
+     #"{{ awsvpc_subnet_cidr_blocks }}"
 
   vars_files:
     - vault.yml
