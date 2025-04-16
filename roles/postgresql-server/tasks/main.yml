@@ -27,4 +27,3 @@
       name: listen_addresses
       value: '*'
     become_user: postgres
-
