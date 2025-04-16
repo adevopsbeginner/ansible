@@ -11,3 +11,7 @@
       ansible.builtin.debug:
         var: ansible_hostname
 
+    - name: Set hostname
+      ansible.builtin.hostname:
+        name: "pg16"
+      become: yes
