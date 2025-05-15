@@ -1,0 +1,41 @@
+---
+- hosts: localhost
+  connection: local
+  gather_facts: False
+  vars:
+    - aws_profile: default
+    - aws_account_no: 471112672291
+    - aws_region: ap-southeast-2
+    - eks_cluster_name: t_kbeginner
+    - code_base: ../terraform
+  environment:
+    - AWS_REGION: '{{ aws_region }}'
+    - K8S_AUTH_KUBECONFIG: ~/.kube/config
+    - K8S_AUTH_CONTEXT: arn:aws:eks:{{ aws_region }}:{{ aws_account_no }}:cluster/{{ eks_cluster_name }}-cluster
+
+  tasks:
+  - name: Terraform eks
+    community.general.terraform:
+      project_path: '{{ code_base }}/eks'
+      state: '{{ deploy_state }}'
+      workspace: '{{ eks_cluster_name }}'
+      init_reconfigure: yes
+      backend_config:
+        region:         "ap-southeast-2"
+        bucket:         "ansible-terraform-eks-states"
+        dynamodb_table: "ansible_terraform_eks_state"
+        key:            "eks-cluster-{{ eks_cluster_name }}.tfstate"
+        profile:        '{{ aws_profile }}'
+    environment:
+      TF_VAR_aws_profile: '{{ aws_profile }}'
+      TF_VAR_aws_account_no: '{{ aws_account_no }}'
+      TF_VAR_aws_region: '{{ aws_region }}'
+      TF_VAR_this_name: '{{ eks_cluster_name }}'
+    register: result
+
+  - name: Terraform logs
+    debug:
+      msg: '{{ result.stdout_lines }}'
+
+  - name: Update kubeconfig
+    command: aws eks update-kubeconfig --name {{ eks_cluster_name }}-cluster --profile {{ aws_profile }} --region {{ aws_region }}

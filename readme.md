@@ -37,6 +37,8 @@ $ ansible-playbook playbooks/playbook.yml
  - keypair
  - vpc + subnet + igw + route table
 
+### How to install httpd server
+
 ---
 ---
 ---
@@ -176,23 +178,3 @@ $ ansible-playbook playbooks/playbook.yml
 ---
 ---
 ---
-## How to install PostgreSQL server
-## How to install httpd server
-## How to create an AWS EC2 instance
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
