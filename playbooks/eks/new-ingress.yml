@@ -1,0 +1,41 @@
+---
+  - name: '{{ helm_name }}'
+    kubernetes.core.helm:
+      name: '{{ helm_name }}'
+      chart_ref: '{{ helm_name }}'
+      chart_repo_url: "{{ chart_repo_url }}"
+      chart_version: "{{ chart_version | default('latest') }}"
+      release_namespace: '{{ helm_name }}'
+      create_namespace: true
+      atomic: yes
+      release_state: '{{ deploy_state }}'
+    
+  - name: ALB info
+    block:
+    - name: Get Ingress alb
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Service
+        name: ingress-nginx-controller
+        namespace: '{{ helm_name }}'
+      register: result
+        
+    - name: Debug ALB info
+      debug:
+        msg: "{{ result.resources[0].status.loadBalancer.ingress[0].hostname }}"
+    
+    - name: Udpate cloudflare
+      community.general.cloudflare_dns:
+        #zone_id: "376fa28daf393e709cc746559cd954bb"
+        zone: "{{ this_domain }}"
+        record: "{{ subdomain }}"
+        type: CNAME
+        value: "{{ result.resources[0].status.loadBalancer.ingress[0].hostname }}"
+        ttl: 1
+        #account_email: "{{ cloudflare_account_email }}"
+        api_token: "{{ cloudflare_api_token }}"
+        proxied: true
+        solo: true
+        state: present
+
+    when: deploy_state == 'present'

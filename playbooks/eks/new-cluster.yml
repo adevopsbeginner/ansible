@@ -1,22 +1,23 @@
 ---
-- hosts: localhost
-  connection: local
-  gather_facts: False
-  vars:
-    - aws_profile: default
-    - aws_account_no: 471112672291
-    - aws_region: ap-southeast-2
-    - eks_cluster_name: t_kbeginner
-    - code_base: ../terraform
-  environment:
-    - AWS_REGION: '{{ aws_region }}'
-    - K8S_AUTH_KUBECONFIG: ~/.kube/config
-    - K8S_AUTH_CONTEXT: arn:aws:eks:{{ aws_region }}:{{ aws_account_no }}:cluster/{{ eks_cluster_name }}-cluster
+  - name: Delete k8s namespaces
+    kubernetes.core.k8s:
+      name: '{{ item }}'
+      api_version: v1
+      kind: Namespace
+      state: absent
+    loop:
+      #- cattle-system
+      - grafana
+      - postgres
+      - cert-manager
+      - ingress-nginx
+      - traefik
+      - "{{ my_application }}"
+    ignore_errors: true
 
-  tasks:
   - name: Terraform eks
     community.general.terraform:
-      project_path: '{{ code_base }}/eks'
+      project_path: '{{ code_base }}/terraform/eks'
       state: '{{ deploy_state }}'
       workspace: '{{ eks_cluster_name }}'
       init_reconfigure: yes
@@ -39,3 +40,4 @@
 
   - name: Update kubeconfig
     command: aws eks update-kubeconfig --name {{ eks_cluster_name }}-cluster --profile {{ aws_profile }} --region {{ aws_region }}
+    when: deploy_state == 'present'

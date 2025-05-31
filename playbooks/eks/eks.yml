@@ -1,0 +1,41 @@
+---
+- hosts: localhost
+  connection: local
+  gather_facts: False
+  vars:
+    - code_base: /srv/git/xyz/adevopsbeginner
+    - ansible_python_interpreter: ~/.venvs/ansible/bin/python
+    - aws_profile: default
+    - aws_account_no: 471112672291
+    - aws_region: ap-southeast-2
+    - eks_cluster_name: t_kbeginner
+    - my_application: adevopsbeginner
+    - this_domain: adevopsbeginner.site
+    - subdomain: eks
+    - cloudflare_account_email: "{{ vault_cloudflare_account_email }}"
+    - cloudflare_api_token: "{{ vault_cloudflare_api_token }}"
+  
+  vars_files:
+    - "{{ code_base }}/ansible/vault.yml"
+
+  environment:
+    - AWS_REGION: '{{ aws_region }}'
+    - K8S_AUTH_KUBECONFIG: /home/devops/.kube/config
+    - K8S_AUTH_CONTEXT: arn:aws:eks:{{ aws_region }}:{{ aws_account_no }}:cluster/{{ eks_cluster_name }}-cluster
+
+  tasks:
+  - name: AWS EKS cluster deployment
+    include_tasks: new-cluster.yml
+
+  - name: Ingress
+    include_tasks: new-ingress.yml
+    vars:
+      - helm_name: ingress-nginx
+      - chart_repo_url: https://kubernetes.github.io/ingress-nginx
+      - chart_version: 4.7.0
+    # vars:
+    #   - helm_name: traefik
+    #   - chart_repo_url: https://traefik.github.io/traefik
+    when: new_ingress is defined
+  
+  - include_tasks: new-hugo.yml

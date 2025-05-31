@@ -1,0 +1,12 @@
+---
+  - name: '{{ helm_name }}'
+    kubernetes.core.helm:
+      name: '{{ helm_name }}'
+      chart_ref: "{{ code_base }}/helm/{{ helm_name }}"
+      #chart_repo_url: "{{ chart_repo_url }}"
+      release_namespace: '{{ helm_name }}'
+      create_namespace: true
+      atomic: yes
+      release_state: '{{ deploy_state }}'
+    vars:
+      - helm_name: adevopsbeginner
