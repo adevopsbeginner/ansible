@@ -1,0 +1,104 @@
+---
+- name: Ansible playbook to deploy gcp vpc
+  hosts: localhost
+  connection: local
+
+  vars:
+    this_name: abeginner
+    gcp_project_id: "aries-462505"
+    gcp_region: "us-central1"
+    gcp_auth_kind: "serviceaccount"
+    gcp_cred_file: "{{ lookup('env','HOME') }}/gcp_ansible_sa.json"
+    vpc_name: "abeginner"
+    vpc_subnets:
+      - name: abeginner
+        cidr: "10.10.10.0/24"
+      - name: bbeginner
+        cidr: "10.10.20.0/24"
+      - name: cbeginner
+        cidr: "10.10.30.0/24"
+    firewall_rules:
+      - name: adevopsbeginner-ssh
+        port: "22"
+        tag: "ssh"
+      - name: adevopsbeginner-http
+        port: "80"
+        tag: "http"
+      - name: adevopsbeginner-https
+        port: "443"
+        tag: "https"
+    label_created_by: adevopsbeginner
+    label_youtube_channel: adevopsbeginner
+    label_website: https_www_adevopsbeginner_site
+
+  tasks:
+    - name: Where/When
+      ansible.builtin.debug:
+        msg: "{{ ansible_fqdn }} - {{ ansible_date_time.date }} {{ ansible_date_time.time }}"
+
+    - name: Get VPC (network) info
+      google.cloud.gcp_compute_network_info:
+        project: "{{ gcp_project_id }}"
+        filters:
+          - "name = {{ vpc_name }}"
+        auth_kind: "{{ gcp_auth_kind }}"
+        service_account_file: "{{ gcp_cred_file }}"
+      register: vpc_info
+
+    - name: Show VPC info
+      ansible.builtin.debug:
+        var: vpc_info
+
+    - name: Create VPC network
+      google.cloud.gcp_compute_network:
+        name: "{{ vpc_name }}"
+        project: "{{ gcp_project_id }}"
+        auto_create_subnetworks: false
+        routing_config:
+          routing_mode: REGIONAL
+        state: present
+        auth_kind: "{{ gcp_auth_kind }}"
+        service_account_file: "{{ gcp_cred_file }}"
+      register: vpc_info
+
+    - name: debug
+      debug:
+        var: vpc_info
+
+    - name: Create Subnet in the VPC
+      google.cloud.gcp_compute_subnetwork:
+        name: "{{ vpc_subenet.name }}"
+        project: "{{ gcp_project_id }}"
+        region: "{{ gcp_region }}"
+        ip_cidr_range: "{{ vpc_subenet.cidr }}"
+        network: "{{ vpc_info }}"
+        private_ip_google_access: true
+        state: present
+        auth_kind: "{{ gcp_auth_kind }}"
+        service_account_file: "{{ gcp_cred_file }}"
+      loop: "{{ vpc_subnets }}"
+      loop_control:
+        loop_var: vpc_subenet
+      register: subnet_info
+
+    - name: debug
+      debug:
+        var: subnet_info
+
+    - name: Create firewall rules
+      google.cloud.gcp_compute_firewall:
+        name: "{{ vpc_name }}-{{ firewall_rule.name }}"
+        project: "{{ gcp_project_id }}"
+        network: "{{ vpc_info }}"
+        allowed:
+          - ip_protocol: tcp
+            ports: ["{{ firewall_rule.port }}"]
+        direction: INGRESS
+        source_ranges: ["0.0.0.0/0"]
+        target_tags: ["{{ firewall_rule.tag }}"]
+        state: present
+        auth_kind: "{{ gcp_auth_kind }}"
+        service_account_file: "{{ gcp_cred_file }}"
+      loop: "{{ firewall_rules }}"
+      loop_control:
+        loop_var: firewall_rule

@@ -1,0 +1,61 @@
+---
+- name: Ansible playbook to deploy gcp storage bucket
+  hosts: localhost
+  connection: local
+
+  vars:
+    this_name: abeginner
+    application_version: 0.1.3
+    gcp_project_id: "aries-462505"
+    gcp_region: "us-central1"
+    gcp_auth_kind: "serviceaccount"
+    gcp_cred_file: "{{ lookup('env','HOME') }}/gcp_ansible_sa.json"
+    storage_bucket_name: "{{ this_name }}"
+    storage_class: "STANDARD"
+    label_created_by: adevopsbeginner
+    label_youtube_channel: adevopsbeginner
+    label_website: https_www_adevopsbeginner_site
+
+  tasks:
+    - name: Where/When
+      ansible.builtin.debug:
+        msg: "{{ ansible_fqdn }} - {{ ansible_date_time.date }} {{ ansible_date_time.time }}"
+
+    - name: Create storage bucket
+      google.cloud.gcp_storage_bucket:
+        name: "{{ storage_bucket_name }}"
+        project: "{{ gcp_project_id }}"
+        location: "us-central1"
+        storage_class: "{{ storage_class }}"
+        #force_destroy: true
+        versioning:
+          enabled: false
+        lifecycle:
+          rule:
+            - action:
+                type: Delete
+              condition:
+                age_days: 365
+        labels:
+          deployment: "ansible"
+          created_by: "{{ label_created_by }}"
+          youtube_channel: "{{ label_youtube_channel }}"
+          website: "{{ label_website }}"
+
+        auth_kind: "{{ gcp_auth_kind }}"
+        service_account_file: "{{ gcp_cred_file }}"
+        state: present
+      register: bucket_info
+    
+    - name: debug
+      debug:
+        var: bucket_info
+
+    - name: Upload docker-compose.yml to GCS bucket
+      google.cloud.gcp_storage_object:
+        bucket: "{{ storage_bucket_name }}"
+        src: "bucket.yml"
+        dest: "bucket.yml"
+        action: upload
+        auth_kind: "{{ gcp_auth_kind }}"
+        service_account_file: "{{ gcp_cred_file }}"

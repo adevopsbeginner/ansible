@@ -1,0 +1,38 @@
+---
+- name: Ansible playbook to deploy gcp vm disk
+  hosts: localhost
+  connection: local
+
+  vars:
+    this_name: abeginner
+    application_version: 0.1.3
+    gcp_project_id: "aries-462505"
+    gcp_region: "us-central1"
+    gcp_zone: "{{ gcp_region }}-c"
+    gcp_auth_kind: "serviceaccount"
+    gcp_cred_file: "{{ lookup('env','HOME') }}/gcp_ansible_sa.json"
+    vm_source_image: "projects/debian-cloud/global/images/family/debian-12"
+    label_created_by: adevopsbeginner
+    label_youtube_channel: adevopsbeginner
+    label_website: https_www_adevopsbeginner_site
+
+  tasks:
+    - name: Where/When
+      ansible.builtin.debug:
+        msg: "{{ ansible_fqdn }} - {{ ansible_date_time.date }} {{ ansible_date_time.time }}"
+
+    - name: create a disk
+      google.cloud.gcp_compute_disk:
+        name: "a-{{ this_name }}-disk"
+        size_gb: 16
+        source_image: "{{ vm_source_image }}"
+        zone: "{{ gcp_zone }}"
+        project: "{{ gcp_project_id }}"
+        auth_kind: "{{ gcp_auth_kind }}"
+        service_account_file: "{{ gcp_cred_file }}"
+        state: present
+      register: disk_info
+    
+    - name: debug
+      debug:
+        var: disk_info
