@@ -22,16 +22,9 @@
     label_youtube_channel: adevopsbeginner
     label_website: https_www_adevopsbeginner_site
     cloudflare_zone: adevopsbeginner.site
-    aws_sg_whitelist: 
-     - "203.123.64.0/20"
-     - "10.10.10.0/24"
 
   vars_files:
     - ../../vault.yml
-
-  # environment:
-  #   GOOGLE_APPLICATION_CREDENTIALS: "{{ gcp_cred_file }}"
-  #   GOOGLE_CLOUD_PROJECT: "{{ gcp_project_id }}"
 
   tasks:
     - name: Where/When
@@ -188,8 +181,6 @@
   become: true
   
   vars:
-  #   ansible_user: ansible_automation
-  #   ansible_ssh_private_key_file: ~/.ssh/ansible_automation
     this_name: gcp
     gcp_auth_kind: "machineaccount"
     storage_bucket_name: "{{ this_name }}-adevopsbeginner-site"
@@ -231,19 +222,11 @@
 
     - name: Ensure nginx folder exists in working directory
       file:
-        path: "/home/{{ ansible_user }}/{{ folder }}"
+        path: "/home/{{ ansible_user }}/nginx"
         state: directory
         owner: "{{ ansible_user }}"
         group: "{{ ansible_user }}"
         mode: "0755"
-      loop:
-        - nginx
-        - nginx/acme
-        - nginx/certs
-        - nginx/html
-        - nginx/vhost.d
-      loop_control:
-        loop_var: folder
 
     - name: Ensure docker group exists
       group:

@@ -5,11 +5,9 @@ After=docker.service
 
 [Service]
 Type=simple
-User={{ ansible_user }}
-Group={{ ansible_user }}
 WorkingDirectory=/home/{{ ansible_user }}
-ExecStart=/usr/bin/docker-compose -f /home/{{ ansible_user }}/docker-compose.yml up -d
-ExecStop=/usr/bin/docker-compose down
+ExecStart=/usr/bin/docker-compose -f /home/{{ ansible_user }}/docker-compose.yml up
+ExecStop=/usr/bin/docker-compose -f /home/{{ ansible_user }}/docker-compose.yml down
 Restart=always
 TimeoutStartSec=0
 

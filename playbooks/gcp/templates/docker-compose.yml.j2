@@ -10,11 +10,11 @@ services:
       - ./nginx/certs:/etc/nginx/certs:ro
       - ./nginx/vhost.d:/etc/nginx/vhost.d
       - ./nginx/html:/usr/share/nginx/html
+      - ./nginx/acme:/etc/acme.sh
       - /var/run/docker.sock:/tmp/docker.sock:ro
 
   acme-companion:
     image: nginxproxy/acme-companion
-    user: "${UID}:${GID}"
     container_name: nginx-proxy-acme
     restart: unless-stopped
     environment:
@@ -24,8 +24,8 @@ services:
       - ./nginx/certs:/etc/nginx/certs
       - ./nginx/vhost.d:/etc/nginx/vhost.d
       - ./nginx/html:/usr/share/nginx/html
-      - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./nginx/acme:/etc/acme.sh
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     depends_on:
       - nginx-proxy
 
