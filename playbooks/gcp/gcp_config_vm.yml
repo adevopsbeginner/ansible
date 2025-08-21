@@ -1,0 +1,90 @@
+---
+- name: Ansible playbook to deploy GCP {{ this_name }}.adevopsbeginner.site
+  hosts: localhost
+  connection: local
+
+  vars:
+    this_name: gcp
+    application_version: 0.1.3
+    gcp_project_id: "aries-462505"
+    gcp_region: "us-central1"
+
+
+- name: Configure the new VM
+  hosts: new_vms
+  become: true
+  
+  vars:
+    this_name: gcp
+    gcp_auth_kind: "machineaccount"
+    storage_bucket_name: "{{ this_name }}-adevopsbeginner-site"
+
+  tasks:
+    - name: Where/When
+      ansible.builtin.debug:
+        msg: "{{ ansible_fqdn }} - {{ ansible_date_time.date }} {{ ansible_date_time.time }}"
+
+    - name: Install Docker & dependencies
+      ansible.builtin.apt:
+        name:
+          - docker.io
+          - docker-compose
+          - python3-pip
+        update_cache: yes
+        state: present
+
+    - name: Install google-cloud-storage library
+      ansible.builtin.pip:
+        name: google-cloud-storage
+        executable: pip3
+        extra_args: --break-system-packages
+
+    - name: Download docker-compose.yml from GCS bucket
+      google.cloud.gcp_storage_object:
+        bucket: "{{ storage_bucket_name }}"
+        src: docker-compose.{{ this_name }}.yml
+        dest: /home/{{ ansible_user }}/docker-compose.yml
+        action: download
+        auth_kind: "{{ gcp_auth_kind }}"
+
+    - name: Set owner and group for downloaded file
+      file:
+        path: /home/{{ ansible_user }}/docker-compose.yml
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+
+    - name: Ensure nginx folder exists in working directory
+      file:
+        path: "/home/{{ ansible_user }}/nginx"
+        state: directory
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: "0755"
+
+    - name: Ensure docker group exists
+      group:
+        name: docker
+        state: present
+
+    - name: Add ansible_user to docker group
+      user:
+        name: "{{ ansible_user }}"
+        groups: docker
+        append: yes
+
+
+    - name: Deploy docker-compose systemd service
+      ansible.builtin.template:
+        src: templates/docker-compose.service.j2
+        dest: /etc/systemd/system/docker-compose.service
+        mode: '0644'
+
+    - name: Reload systemd daemon
+      ansible.builtin.systemd:
+        daemon_reload: yes
+
+    - name: Enable and start docker-compose service
+      ansible.builtin.systemd:
+        name: docker-compose
+        enabled: yes
+        state: started

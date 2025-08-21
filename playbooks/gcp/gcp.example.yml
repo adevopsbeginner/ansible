@@ -1,0 +1,272 @@
+---
+- name: Ansible playbook to deploy GCP {{ this_name }}.adevopsbeginner.site
+  hosts: localhost
+  connection: local
+
+  vars:
+    this_name: gcp
+    application_version: 0.1.3
+    gcp_project_id: "aries-462505"
+    gcp_region: "us-central1"
+    gcp_zone: "{{ gcp_region }}-c"
+    gcp_auth_kind: "serviceaccount"
+    gcp_cred_file: "{{ lookup('env','HOME') }}/gcp_ansible_sa.json"
+    storage_bucket_name: "{{ this_name }}-adevopsbeginner-site"
+    storage_class: "STANDARD"
+    vm_name: "{{ this_name }}-adevopsbeginner-site"
+    vm_machine_type: "e2-micro"
+    vm_source_image: "projects/debian-cloud/global/images/family/debian-12"
+    vpc_name: "abeginner"        ###"https://www.googleapis.com/compute/v1/projects/{{ gcp_project_id }}/global/networks/abeginner"
+    vpc_subnet_name: "abeginner" ###"https://www.googleapis.com/compute/v1/projects/{{ gcp_project_id }}/regions/us-central1/subnetworks/abeginner"
+    label_created_by: adevopsbeginner
+    label_youtube_channel: adevopsbeginner
+    label_website: https_www_adevopsbeginner_site
+    cloudflare_zone: adevopsbeginner.site
+    aws_sg_whitelist: 
+     - "203.123.64.0/20"
+     - "10.10.10.0/24"
+
+  vars_files:
+    - ../../vault.yml
+
+  # environment:
+  #   GOOGLE_APPLICATION_CREDENTIALS: "{{ gcp_cred_file }}"
+  #   GOOGLE_CLOUD_PROJECT: "{{ gcp_project_id }}"
+
+  tasks:
+    - name: Where/When
+      ansible.builtin.debug:
+        msg: "{{ ansible_fqdn }} - {{ ansible_date_time.date }} {{ ansible_date_time.time }}"
+
+    - name: Create storage bucket
+      google.cloud.gcp_storage_bucket:
+        name: "{{ storage_bucket_name }}"
+        project: "{{ gcp_project_id }}"
+        location: "us-central1"
+        storage_class: "{{ storage_class }}"
+        #force_destroy: true
+        versioning:
+          enabled: false
+        lifecycle:
+          rule:
+            - action:
+                type: Delete
+              condition:
+                age_days: 365
+        labels:
+          deployment: "ansible"
+          created_by: "{{ label_created_by }}"
+          youtube_channel: "{{ label_youtube_channel }}"
+          website: "{{ label_website }}"
+
+        auth_kind: "{{ gcp_auth_kind }}"
+        service_account_file: "{{ gcp_cred_file }}"
+        state: present
+
+    - name: Template docker-compose.yml
+      ansible.builtin.template:
+        src: templates/docker-compose.yml.j2
+        dest: "/tmp/docker-compose.yml"
+
+    - name: Upload docker-compose.yml to GCS bucket
+      google.cloud.gcp_storage_object:
+        bucket: "{{ storage_bucket_name }}"
+        src: "/tmp/docker-compose.yml"
+        dest: "docker-compose.{{ this_name }}.yml"
+        action: upload
+        auth_kind: "{{ gcp_auth_kind }}"
+        service_account_file: "{{ gcp_cred_file }}"
+
+    - name: Get VPC (network) info
+      google.cloud.gcp_compute_network_info:
+        project: "{{ gcp_project_id }}"
+        filters:
+          - "name = {{ vpc_name }}"
+        auth_kind: "{{ gcp_auth_kind }}"
+        service_account_file: "{{ gcp_cred_file }}"
+      register: vpc_network
+
+    - name: Show VPC info
+      ansible.builtin.debug:
+        var: vpc_network
+
+    - name: Get Subnet info in the VPC
+      google.cloud.gcp_compute_subnetwork_info:
+        project: "{{ gcp_project_id }}"
+        region: "{{ gcp_region }}"
+        filters:
+          - "name = {{ vpc_subnet_name }}"
+        auth_kind: "{{ gcp_auth_kind }}"
+        service_account_file: "{{ gcp_cred_file }}"
+      register: vpc_subnet
+
+    - name: Show VPC subenet info
+      ansible.builtin.debug:
+        var: vpc_subnet
+
+    - name: Create VM instance
+      google.cloud.gcp_compute_instance:
+        name: "{{ vm_name }}"
+        project: "{{ gcp_project_id }}"
+        zone: "{{ gcp_zone }}"
+        machine_type: "{{ vm_machine_type }}"
+        disks:
+          - auto_delete: true
+            boot: true
+            initialize_params:
+              source_image: "{{ vm_source_image }}"
+        network_interfaces:
+          - network:
+              selfLink: "{{ vpc_network.resources[0].selfLink }}"
+            subnetwork:
+              selfLink: "{{ vpc_subnet.resources[0].selfLink }}"
+            access_configs:
+              - name: External NAT
+                type: ONE_TO_ONE_NAT
+        tags:
+          items:
+            - ssh
+            - http
+            - https
+        metadata:
+          enable-oslogin: "TRUE"
+          metadata_startup_script: |
+            #!/bin/bash
+            apt-get update -y
+        service_accounts:
+          - email: "ansible@{{ gcp_project_id }}.iam.gserviceaccount.com"
+            scopes:
+              - https://www.googleapis.com/auth/cloud-platform
+              - https://www.googleapis.com/auth/devstorage.read_only 
+        labels:
+          deployment: ansible
+          created_by: adevopsbeginner
+          youtube_channel: "{{ label_youtube_channel }}"
+          website: "{{ label_website }}"
+        auth_kind: "{{ gcp_auth_kind }}"
+        service_account_file: "{{ gcp_cred_file }}"
+        state: present
+      register: vm_info
+
+    - name: Set ip address
+      ansible.builtin.set_fact:
+        vm_public_ip_address: "{{ vm_info.networkInterfaces[0].accessConfigs[0].natIP }}"
+
+    - name: VM natIP
+      ansible.builtin.debug:
+        var: vm_public_ip_address
+
+    - name: DNS Update Cloudflare
+      community.general.cloudflare_dns:
+        account_email: "{{ vault_cloudflare_account_email }}"
+        api_token: "{{ vault_cloudflare_api_token }}"
+        zone: "{{ cloudflare_zone }}"
+        record: "{{ this_name }}.{{ cloudflare_zone }}"
+        type: A
+        value: "{{ vm_public_ip_address }}"
+        proxied: false
+        state: "{{ item }}"
+      loop:
+        - absent
+        - present
+
+    - name: Add new VM to inventory
+      ansible.builtin.add_host:
+        name: "{{ vm_public_ip_address }}"
+        groups: new_vms
+
+    - name: Wait for SSH to be available
+      ansible.builtin.wait_for:
+        host: "{{ vm_public_ip_address }}"
+        port: 22
+        delay: 1       # wait before first check
+        timeout: 120
+        state: started
+
+- name: Configure the new VM
+  hosts: new_vms
+  become: true
+  
+  vars:
+    this_name: gcp
+    gcp_auth_kind: "machineaccount"
+    storage_bucket_name: "{{ this_name }}-adevopsbeginner-site"
+
+  tasks:
+    - name: Where/When
+      ansible.builtin.debug:
+        msg: "{{ ansible_fqdn }} - {{ ansible_date_time.date }} {{ ansible_date_time.time }}"
+
+    - name: Install Docker & dependencies
+      ansible.builtin.apt:
+        name:
+          - docker.io
+          - docker-compose
+          - python3-pip
+        update_cache: yes
+        state: present
+
+    - name: Install google-cloud-storage library
+      ansible.builtin.pip:
+        name: google-cloud-storage
+        executable: pip3
+        extra_args: --break-system-packages
+
+    - name: Download docker-compose.yml from GCS bucket
+      google.cloud.gcp_storage_object:
+        bucket: "{{ storage_bucket_name }}"
+        src: docker-compose.{{ this_name }}.yml
+        dest: /home/{{ ansible_user }}/docker-compose.yml
+        action: download
+        auth_kind: "{{ gcp_auth_kind }}"
+      become: false
+
+    - name: Set owner and group for downloaded file
+      file:
+        path: /home/{{ ansible_user }}/docker-compose.yml
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+
+    - name: Ensure nginx folder exists in working directory
+      file:
+        path: "/home/{{ ansible_user }}/{{ folder }}"
+        state: directory
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: "0755"
+      loop:
+        - nginx
+        - nginx/acme
+        - nginx/certs
+        - nginx/html
+        - nginx/vhost.d
+      loop_control:
+        loop_var: folder
+
+    - name: Ensure docker group exists
+      group:
+        name: docker
+        state: present
+
+    - name: Add ansible_user to docker group
+      user:
+        name: "{{ ansible_user }}"
+        groups: docker
+        append: yes
+
+
+    - name: Deploy docker-compose systemd service
+      ansible.builtin.template:
+        src: templates/docker-compose.service.j2
+        dest: /etc/systemd/system/docker-compose.service
+        mode: '0644'
+
+    - name: Reload systemd daemon
+      ansible.builtin.systemd:
+        daemon_reload: yes
+
+    - name: Enable and start docker-compose service
+      ansible.builtin.systemd:
+        name: docker-compose
+        enabled: yes
+        state: started
